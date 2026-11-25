@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 탐험대</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 신나는 오락실 게임, 중1 눈높이로 짧고 다정한 말투
+   IDEA: 파란 기판 위에 하얀 게임 화면을 끼운 탐험 게임기
+   PICTURE: 내가 꾸민 캐릭터가 모든 스테이지에서 말 걸고 표정으로 반응
+   COLOUR and TYPE: 코발트 바탕, 흰 패널, 노랑 강조 / Jua 제목 + Noto Sans KR 본문
+   LAYOUT: 상단 HUD, 왼쪽 캐릭터와 말풍선, 오른쪽 놀이판, 좁으면 위아래로 */
+:root{color-scheme:light dark;--bg:light-dark(#2b59ff,#0c1330);--panel:light-dark(#fff,#18214a);--ink:light-dark(#151a3d,#eef1ff);--mut:light-dark(#596190,#a8b0dc);--line:light-dark(#e2e6fa,#2b3668);--soft:light-dark(#f1f4ff,#202a58);--acc:#ffd23f;--ok:#14a866;--bad:#ef4b52;--blue:light-dark(#2b59ff,#8aa6ff)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg) radial-gradient(rgba(255,255,255,.13) 1.5px,transparent 1.6px) 0 0/22px 22px;color:var(--ink);font:16px/1.6 "Noto Sans KR",system-ui,sans-serif;overflow-x:clip;min-height:100vh}
+h1,h2,h3,.brand,.btn,.chip,.num{font-family:Jua,"Noto Sans KR",sans-serif;font-weight:400}
+.hud{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;padding:10px max(4vw,14px);background:rgba(10,20,80,.35);backdrop-filter:blur(8px);color:#fff}
+.brand{font-size:24px;cursor:pointer;background:none;border:0;color:#fff;padding:0}
+.brand b{color:var(--acc);font-weight:400}
+.me{display:flex;align-items:center;gap:8px;margin-left:auto;font-weight:600}
+.me svg{width:38px;height:38px}
+.stars{background:var(--acc);color:#3b2a00;border-radius:99px;padding:4px 14px;font-family:Jua;font-size:18px;white-space:nowrap}
+main{max-width:1100px;margin:0 auto;padding:22px max(4vw,14px) 60px}
+.panel{background:var(--panel);border-radius:24px;padding:clamp(18px,3vw,30px);box-shadow:0 8px 0 rgba(0,0,0,.18)}
+h1{font-size:clamp(40px,7vw,64px);line-height:1.05;margin:0;color:#fff;text-wrap:balance}
+h2{font-size:clamp(26px,4vw,34px);line-height:1.1;margin:0 0 4px}
+h3{font-size:21px;margin:0 0 8px}
+p{margin:0 0 10px}.sub{color:var(--mut)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:8px 22px;border:0;border-radius:16px;background:var(--acc);color:#3b2a00;font-size:20px;cursor:pointer;box-shadow:0 5px 0 #d9a800;transition:transform .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 #d9a800}
+.btn.blue{background:var(--blue);color:#fff;box-shadow:0 5px 0 light-dark(#1a3dc0,#4a63c0)}
+.btn.ghost{background:var(--soft);color:var(--ink);box-shadow:0 5px 0 var(--line)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.chip:focus-visible,input:focus-visible,.brand:focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+/* start */
+.hero{text-align:center;padding:30px 0 10px;color:#fff}
+.hero p{font-size:19px;max-width:620px;margin:14px auto 26px;opacity:.95}
+.lineup{display:flex;justify-content:center;gap:clamp(4px,2vw,24px);margin:10px 0 30px}
+.lineup svg{width:clamp(70px,16vw,150px);animation:bob 2.4s ease-in-out infinite}
+.lineup svg:nth-child(2){animation-delay:.3s}.lineup svg:nth-child(3){animation-delay:.6s}.lineup svg:nth-child(4){animation-delay:.9s}
+@keyframes bob{50%{transform:translateY(-10px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* maker */
+.maker{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:22px;align-items:start}
+.preview{background:var(--soft);border-radius:20px;padding:16px;text-align:center}
+.preview svg{width:100%;max-width:260px}
+.preview .nm{font-family:Jua;font-size:26px}
+.opt{margin-bottom:16px}.opt h3{font-size:18px;color:var(--mut)}
+.chip{min-height:44px;padding:6px 16px;border-radius:14px;border:2px solid var(--line);background:var(--panel);color:var(--ink);font-size:17px;cursor:pointer}
+.chip.on{border-color:var(--blue);background:var(--blue);color:#fff}
+.sw{width:44px;height:44px;border-radius:50%;border:4px solid var(--panel);box-shadow:0 0 0 2px var(--line);cursor:pointer}
+.sw.on{box-shadow:0 0 0 4px var(--blue)}
+input[type=text]{font:16px "Noto Sans KR";padding:12px 14px;border-radius:14px;border:2px solid var(--line);background:var(--panel);color:var(--ink);width:min(100%,280px)}
+/* map */
+.maphead{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-bottom:18px;color:#fff}
+.maphead svg{width:90px}
+.nodes{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+.node{position:relative;text-align:left;border:0;cursor:pointer;color:var(--ink);font:inherit;display:flex;flex-direction:column;gap:6px}
+.node .num{width:46px;height:46px;border-radius:50%;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:24px}
+.node h3{margin:4px 0 0}.node p{color:var(--mut);font-size:15px;margin:0}
+.node .st{font-family:Jua;font-size:22px;color:#e0a800;letter-spacing:2px}
+.node.lock{opacity:.55;cursor:not-allowed}.node.lock .num{background:var(--mut)}
+/* stage */
+.stage{display:grid;grid-template-columns:210px minmax(0,1fr);gap:20px;align-items:start}
+.side{position:sticky;top:76px}
+.bubble{background:var(--panel);border-radius:18px;padding:14px 16px;font-weight:600;position:relative;margin-bottom:14px;box-shadow:0 6px 0 rgba(0,0,0,.15)}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-12px;margin-left:-10px;border:10px solid transparent;border-top-color:var(--panel);border-bottom:0}
+.big svg{width:100%;display:block}
+.sh{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;margin-bottom:14px}
+.sh .sub{flex-basis:100%;margin:0}
+.back{margin-left:auto;order:2}
+.tip{background:var(--soft);border-radius:16px;padding:12px 16px;margin-bottom:16px;font-size:15.5px}
+.tip b{color:var(--blue)}
+.card{border:3px solid var(--line);border-radius:20px;padding:22px;text-align:center;margin-bottom:16px}
+.card h3{font-size:32px;margin-bottom:6px}
+.card p{font-size:18px;margin:0}
+.meter{height:12px;background:var(--soft);border-radius:99px;overflow:hidden;margin:6px 0 16px}
+.meter i{display:block;height:100%;background:var(--acc);border-radius:99px;transition:width .3s}
+.fb{border-radius:16px;padding:14px 16px;margin:14px 0;font-weight:600}
+.fb.ok{background:color-mix(in srgb,var(--ok) 15%,var(--panel));border:2px solid var(--ok)}
+.fb.no{background:color-mix(in srgb,var(--bad) 13%,var(--panel));border:2px solid var(--bad)}
+.fb small{display:block;font-weight:400;margin-top:4px;font-size:15px}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.choices .btn{width:100%}
+.result{text-align:center;padding:10px 0}
+.result .big-st{font-family:Jua;font-size:56px;color:#e0a800;letter-spacing:6px;line-height:1.1}
+/* fruit */
+.fruits{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-bottom:16px}
+.fruit{border:3px solid var(--line);border-radius:18px;padding:8px;text-align:center}
+.fruit svg{width:80px;height:80px}
+.fruit .row{justify-content:center;gap:6px}
+.fruit .chip{padding:4px 10px;font-size:15px;min-height:40px}
+.fruit.good{border-color:var(--ok)}.fruit.bad{border-color:var(--bad)}
+.fruit .say{font-family:Jua;font-size:19px}
+/* board */
+.board{background:var(--soft);border-radius:18px;padding:8px;margin-bottom:14px}
+.board svg{width:100%;display:block}
+/* grid world */
+.gw{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;max-width:400px;margin:0 auto 14px}
+.cell{aspect-ratio:1;border-radius:12px;background:var(--soft);display:grid;place-items:center;font-family:Jua;font-size:clamp(18px,4vw,28px);color:var(--blue);position:relative}
+.cell svg{width:82%;height:82%}
+.cell.start{outline:3px dashed var(--line)}
+.cell.goal{background:color-mix(in srgb,var(--acc) 35%,var(--soft))}
+.cell.trap{background:color-mix(in srgb,var(--bad) 18%,var(--soft))}
+.stats{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:center;margin-bottom:10px;font-weight:600}
+.hist{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-bottom:14px;min-height:14px}
+.hist i{width:12px;height:12px;border-radius:50%;background:var(--mut)}
+.hist i.goal{background:var(--ok)}.hist i.trap{background:var(--bad)}
+.legend{font-size:14px;color:var(--mut);text-align:center;margin-bottom:12px}
+/* certificate */
+.cert{text-align:center;border:6px double var(--acc);border-radius:24px;padding:26px}
+.cert svg{width:180px}
+.cert h2{font-size:clamp(32px,6vw,46px)}
+.cert .nm{font-family:Jua;font-size:30px;color:var(--blue)}
+@media(max-width:760px){
+ .stage{grid-template-columns:minmax(0,1fr)}
+ .side{position:static;display:flex;align-items:center;gap:12px}
+ .side .big{width:92px;flex:none;order:-1}
+ .bubble{margin:0;flex:1}
+ .bubble::after{left:-10px;top:50%;bottom:auto;margin:-10px 0 0;border:10px solid transparent;border-right-color:var(--panel);border-left:0}
+ .maker{grid-template-columns:minmax(0,1fr)}
+ .preview svg{max-width:180px}
+}
+@media(max-width:600px){.hud .brand{font-size:20px}.card h3{font-size:26px}.me span{display:none}}
+</style>
+</head>
+<body>
+<header class="hud">
+ <button class="brand" data-go="map" aria-label="지도로 가기">AI <b>탐험대</b></button>
+ <div class="me" id="me"></div>
+ <div class="stars" id="stars">★ 0</div>
+</header>
+<main id="app"></main>
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const COLORS=['#ff6b6b','#ffb13d','#4cc3ff','#9b7bff','#3ccf91','#ff8fc8'];
+const TYPES=[['robot','로봇'],['blob','말랑이'],['owl','부엉이'],['cat','고양이봇']];
+const EYES=[['round','동글'],['spark','반짝'],['sleepy','졸린'],['square','네모']];
+const ACC=[['none','없음'],['cap','모자'],['crown','왕관'],['phones','헤드폰'],['bow','리본']];
+let ch=Object.assign({type:'robot',color:COLORS[2],eyes:'round',acc:'none',name:''},store.get('aiq-ch',{}));
+let prog=Object.assign({stars:[0,0,0,0],quiz:-1,made:false},store.get('aiq-prog',{}));
+const save=()=>{store.set('aiq-ch',ch);store.set('aiq-prog',prog)};
+const nameOf=()=>esc(ch.name.trim()||'탐험가');
+
+function shade(h,p){const n=parseInt(h.slice(1),16);let r=n>>16,g=n>>8&255,b=n&255;const t=p<0?0:255,a=Math.abs(p);return `rgb(${Math.round(r+(t-r)*a)},${Math.round(g+(t-g)*a)},${Math.round(b+(t-b)*a)})`}
+
+function charSVG(c,mood){
+ mood=mood||'happy';
+ const col=c.color,dk=shade(col,-.28),lt=shade(col,.45),D='#1d1f3a';
+ const top={robot:30,blob:27,owl:27,cat:34}[c.type];
+ const ey=c.type==='cat'?66:c.type==='robot'?62:64;
+ let b=`<ellipse cx="60" cy="113" rx="34" ry="5" fill="#000" opacity=".16"/>`;
+ if(c.type==='robot')b+=`<line x1="60" y1="31" x2="60" y2="15" stroke="${dk}" stroke-width="4"/><circle cx="60" cy="13" r="6" fill="#ffd23f"/><rect x="15" y="54" width="12" height="24" rx="5" fill="${dk}"/><rect x="93" y="54" width="12" height="24" rx="5" fill="${dk}"/><rect x="23" y="30" width="74" height="76" rx="20" fill="${col}"/><rect x="31" y="35" width="58" height="10" rx="5" fill="${lt}" opacity=".6"/>`;
+ if(c.type==='blob')b+=`<path d="M18 80 C18 44 38 27 60 27 C82 27 102 44 102 80 C102 100 86 108 60 108 C34 108 18 100 18 80Z" fill="${col}"/><ellipse cx="44" cy="42" rx="12" ry="6" fill="#fff" opacity=".4"/>`;
+ if(c.type==='owl')b+=`<path d="M26 44 L28 14 L48 32Z" fill="${dk}"/><path d="M94 44 L92 14 L72 32Z" fill="${dk}"/><ellipse cx="60" cy="68" rx="39" ry="40" fill="${col}"/><ellipse cx="60" cy="88" rx="22" ry="17" fill="${lt}"/><circle cx="46" cy="${ey}" r="14" fill="${lt}"/><circle cx="74" cy="${ey}" r="14" fill="${lt}"/>`;
+ if(c.type==='cat')b+=`<path d="M22 54 L28 16 L54 36Z" fill="${col}"/><path d="M98 54 L92 16 L66 36Z" fill="${col}"/><path d="M30 44 L32 25 L45 36Z" fill="#ffb3c7"/><path d="M90 44 L88 25 L75 36Z" fill="#ffb3c7"/><ellipse cx="60" cy="70" rx="41" ry="37" fill="${col}"/>`;
+ for(const x of [46,74]){
+  if(c.eyes==='round')b+=`<circle cx="${x}" cy="${ey}" r="9" fill="#fff"/><circle cx="${x+1}" cy="${ey+1}" r="4.6" fill="${D}"/>`;
+  if(c.eyes==='spark')b+=`<circle cx="${x}" cy="${ey}" r="7.5" fill="${D}"/><circle cx="${x+2.6}" cy="${ey-2.6}" r="2.6" fill="#fff"/>`;
+  if(c.eyes==='sleepy')b+=`<path d="M${x-8} ${ey} Q${x} ${ey+7} ${x+8} ${ey}" stroke="${D}" stroke-width="3.6" fill="none" stroke-linecap="round"/>`;
+  if(c.eyes==='square')b+=`<rect x="${x-6}" y="${ey-6}" width="12" height="12" rx="2" fill="${D}"/>`;
+  if(mood==='sad')b+=`<path d="M${x-8} ${x<60?ey-11:ey-15} L${x+8} ${x<60?ey-15:ey-11}" stroke="${D}" stroke-width="3" stroke-linecap="round"/>`;
+ }
+ const my=c.type==='owl'?92:ey+20;
+ if(c.type==='owl')b+=`<path d="M55 ${ey+8} L65 ${ey+8} L60 ${ey+16}Z" fill="#ffb13d"/>`;
+ if(mood==='happy')b+=`<path d="M50 ${my-3} Q60 ${my+8} 70 ${my-3}" stroke="${D}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+ if(mood==='sad')b+=`<path d="M51 ${my+4} Q60 ${my-4} 69 ${my+4}" stroke="${D}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+ if(mood==='wow')b+=`<ellipse cx="60" cy="${my+1}" rx="6" ry="7" fill="${D}"/>`;
+ if(mood==='think')b+=`<path d="M52 ${my+1} L68 ${my-1}" stroke="${D}" stroke-width="3.5" stroke-linecap="round"/>`;
+ b+=`<ellipse cx="36" cy="${ey+13}" rx="6" ry="3.5" fill="#ff6f9f" opacity=".5"/><ellipse cx="84" cy="${ey+13}" rx="6" ry="3.5" fill="#ff6f9f" opacity=".5"/>`;
+ if(c.type==='cat')b+=`<path d="M16 76 L32 78 M16 84 L32 82 M104 76 L88 78 M104 84 L88 82" stroke="${dk}" stroke-width="2" stroke-linecap="round"/>`;
+ const t=top;
+ if(c.acc==='cap')b+=`<path d="M34 ${t+6} Q36 ${t-22} 60 ${t-22} Q84 ${t-22} 86 ${t+6}Z" fill="#ef4b52"/><rect x="58" y="${t+1}" width="44" height="8" rx="4" fill="#c7353b"/><circle cx="60" cy="${t-21}" r="3.5" fill="#fff"/>`;
+ if(c.acc==='crown')b+=`<path d="M38 ${t+5} L38 ${t-14} L49 ${t-4} L60 ${t-21} L71 ${t-4} L82 ${t-14} L82 ${t+5}Z" fill="#ffd23f" stroke="#d9a800" stroke-width="2" stroke-linejoin="round"/><circle cx="60" cy="${t-5}" r="3.5" fill="#ef4b52"/>`;
+ if(c.acc==='phones')b+=`<path d="M19 66 Q19 ${t-12} 60 ${t-12} Q101 ${t-12} 101 66" stroke="#2a2d4f" stroke-width="6" fill="none"/><rect x="10" y="56" width="16" height="26" rx="7" fill="#2a2d4f"/><rect x="94" y="56" width="16" height="26" rx="7" fill="#2a2d4f"/><rect x="13" y="61" width="5" height="16" rx="2.5" fill="#ffd23f"/><rect x="102" y="61" width="5" height="16" rx="2.5" fill="#ffd23f"/>`;
+ if(c.acc==='bow')b+=`<path d="M82 ${t+3} L66 ${t-8} L66 ${t+14}Z M82 ${t+3} L98 ${t-8} L98 ${t+14}Z" fill="#ff8fc8" stroke="#e0569b" stroke-width="2" stroke-linejoin="round"/><circle cx="82" cy="${t+3}" r="4.5" fill="#e0569b"/>`;
+ return `<svg viewBox="0 0 120 120" role="img" aria-label="내 캐릭터">${b}</svg>`;
+}
+
+function hud(){
+ $('#me').innerHTML=prog.made?`${charSVG(ch,'happy')}<span>${nameOf()}</span>`:'';
+ $('#stars').textContent='★ '+prog.stars.reduce((a,b)=>a+b,0);
+}
+let screen='start';
+function go(s){screen=s;stopTimers();R[s]();hud();window.scrollTo(0,0)}
+const app=()=>$('#app');
+let timers=[];const later=(f,ms)=>{const t=setTimeout(f,ms);timers.push(t);return t};
+function stopTimers(){timers.forEach(clearTimeout);timers=[];if(s4)s4.busy=false;if(s3)s3.running=false}
+
+function stageWrap(title,sub,body,say,mood){
+ return `<section class="stage"><div class="side"><div class="bubble" id="say">${say}</div><div class="big" id="bigch">${charSVG(ch,mood||'happy')}</div></div>
+ <div class="panel"><div class="sh"><h2>${title}</h2><button class="btn ghost back" data-go="map">지도로</button><p class="sub">${sub}</p></div><div id="play">${body}</div></div></section>`;
+}
+function talk(text,mood){const s=$('#say');if(s){s.innerHTML=text;$('#bigch').innerHTML=charSVG(ch,mood||'happy')}}
+const starTxt=n=>'★'.repeat(n)+'☆'.repeat(3-n);
+function finish(idx,stars,msg,next){
+ prog.stars[idx]=Math.max(prog.stars[idx],stars);save();hud();
+ $('#play').innerHTML=`<div class="result"><div class="big-st">${starTxt(stars)}</div><h3>${msg}</h3><div class="row" style="justify-content:center;margin-top:16px"><button class="btn ghost" data-act="retry" data-v="${idx}">다시 하기</button><button class="btn" data-go="${next}">다음으로</button></div></div>`;
+ talk(stars===3?`완벽해! ${nameOf()}, 최고의 탐험가야!`:'잘했어! 다시 도전하면 별을 더 모을 수 있어.',stars===3?'wow':'happy');
+}
+
+const R={};
+/* ---------- 시작 ---------- */
+R.start=()=>{
+ const demo=TYPES.map(([t],i)=>charSVG({type:t,color:COLORS[[2,5,1,3][i]],eyes:EYES[i][0],acc:['phones','bow','crown','cap'][i]},'happy')).join('');
+ app().innerHTML=`<div class="hero"><h1>AI 탐험대</h1><p>인공지능과 인공지능이 아닌 것을 가려내고, 인공지능이 공부하는 세 가지 방법을 게임으로 직접 해 봐요.</p>
+ <div class="lineup">${demo}</div><div class="row" style="justify-content:center">
+ ${prog.made?`<button class="btn" data-go="map">이어서 탐험하기</button><button class="btn blue" data-go="make">캐릭터 다시 꾸미기</button>`:`<button class="btn" data-go="make">내 캐릭터 만들기</button>`}</div></div>`;
+};
+/* ---------- 캐릭터 만들기 ---------- */
+R.make=()=>{
+ const chips=(key,list)=>list.map(([v,l])=>`<button class="chip ${ch[key]===v?'on':''}" data-act="set" data-v="${key}:${v}">${l}</button>`).join('');
+ app().innerHTML=`<div class="panel"><h2>내 캐릭터 만들기</h2><p class="sub">모양, 색, 눈, 꾸미기 아이템을 골라서 나만의 탐험가를 만들어요.</p>
+ <div class="maker"><div class="preview"><div id="pv">${charSVG(ch,'happy')}</div><div class="nm" id="pvn">${nameOf()}</div></div>
+ <div><div class="opt"><h3>모양</h3><div class="row">${chips('type',TYPES)}</div></div>
+ <div class="opt"><h3>색깔</h3><div class="row">${COLORS.map(c=>`<button class="sw ${ch.color===c?'on':''}" style="background:${c}" data-act="set" data-v="color:${c}" aria-label="색 ${c}"></button>`).join('')}</div></div>
+ <div class="opt"><h3>눈</h3><div class="row">${chips('eyes',EYES)}</div></div>
+ <div class="opt"><h3>꾸미기</h3><div class="row">${chips('acc',ACC)}</div></div>
+ <div class="opt"><h3>이름</h3><input type="text" id="nm" maxlength="8" placeholder="예: 똑똑이" value="${esc(ch.name)}"></div>
+ <div class="row"><button class="btn" data-act="done">이 캐릭터로 출발</button><button class="btn ghost" data-act="rand">아무거나 골라 줘</button></div></div></div></div>`;
+ $('#nm').addEventListener('input',e=>{ch.name=e.target.value;$('#pvn').innerHTML=nameOf();save();hud()});
+};
+/* ---------- 지도 ---------- */
+const NODES=[['AI일까, 아닐까?','진짜 인공지능을 골라내는 감별사 훈련'],['지도학습 연구실','정답을 알려 주며 AI에게 과일 가르치기'],['비지도학습 연구실','정답 없이 AI가 스스로 무리 짓기'],['강화학습 미로','보상과 벌점으로 AI가 길 찾기'],['최종 시험','세 가지 학습 방법 구분하고 수료증 받기']];
+const unlocked=i=>i===0||prog.stars[i-1]>0;
+R.map=()=>{
+ app().innerHTML=`<div class="maphead">${charSVG(ch,'happy')}<div><h1 style="font-size:clamp(30px,5vw,44px)">${nameOf()}의 탐험 지도</h1><p style="margin:6px 0 0">스테이지를 깨면 다음 길이 열려요. 별을 모아 보세요!</p></div></div>
+ <div class="nodes">${NODES.map(([t,d],i)=>{const ok=unlocked(i);const st=i<4?starTxt(prog.stars[i]):(prog.quiz>=0?`${prog.quiz} / ${FQ.length}`:'');
+ return `<button class="panel node ${ok?'':'lock'}" ${ok?`data-go="s${i+1}"`:'disabled'}><span class="num">${i+1}</span><h3>${t}</h3><p>${ok?d:'앞 스테이지를 먼저 깨야 열려요'}</p><span class="st">${st}</span></button>`}).join('')}</div>
+ <div class="row" style="margin-top:20px"><button class="btn ghost" data-go="make">캐릭터 꾸미기</button></div>`;
+};
+
+/* ---------- 1. AI 감별 ---------- */
+const SYS=[
+ {n:'동영상 추천',d:'내가 본 영상 기록을 보고 좋아할 만한 영상을 골라 보여 줘요.',ai:1,w:'수많은 사람의 시청 기록 데이터를 학습해서 내 취향을 예측해요.'},
+ {n:'얼굴 인식 잠금',d:'카메라로 얼굴을 보고 휴대폰 주인인지 알아봐요.',ai:1,w:'많은 얼굴 사진으로 학습해서 처음 보는 각도의 얼굴도 판단해요.'},
+ {n:'번역 앱',d:'한국어 문장을 영어로 자연스럽게 바꿔 줘요.',ai:1,w:'엄청난 양의 문장 데이터를 학습해서 새로운 문장도 번역해요.'},
+ {n:'스팸 메일 거르기',d:'광고나 사기 메일을 알아서 스팸함으로 보내요.',ai:1,w:'스팸 메일 예시를 학습해서 처음 보는 메일도 스팸인지 판단해요.'},
+ {n:'음성 비서',d:'"내일 날씨 어때?"라고 말하면 알아듣고 대답해요.',ai:1,w:'사람 목소리 데이터를 학습해서 다양한 말투도 알아들어요.'},
+ {n:'자율주행 자동차',d:'도로와 사람, 신호를 보고 스스로 운전해요.',ai:1,w:'수많은 도로 영상을 학습해서 상황마다 스스로 판단해요.'},
+ {n:'손글씨 인식',d:'태블릿에 손으로 쓴 글씨를 글자로 바꿔 줘요.',ai:1,w:'사람마다 다른 글씨체를 데이터로 학습해서 알아봐요.'},
+ {n:'계산기',d:'숫자와 기호를 누르면 답을 보여 줘요.',ai:0,w:'정해진 계산 규칙대로만 움직여요. 배우거나 스스로 판단하지 않아요.'},
+ {n:'자동문',d:'사람이 다가가면 문이 스르륵 열려요.',ai:0,w:'센서에 무언가 감지되면 연다는 규칙뿐이에요. 센서가 있다고 AI는 아니에요.'},
+ {n:'신호등',d:'정해진 시간마다 빨강, 초록으로 바뀌어요.',ai:0,w:'사람이 정해 둔 시간표대로 바뀔 뿐 데이터로 배우지 않아요.'},
+ {n:'음료 자판기',d:'돈을 넣고 버튼을 누르면 음료가 나와요.',ai:0,w:'버튼과 음료가 미리 짝지어진 규칙대로만 움직여요.'},
+ {n:'알람 시계',d:'맞춰 둔 시각이 되면 울려요.',ai:0,w:'정한 시각에 울린다는 규칙 하나뿐이에요.'},
+ {n:'자동 난방기',d:'방 온도가 20도보다 낮으면 저절로 켜져요.',ai:0,w:'"20도 아래면 켜기"라는 사람이 만든 규칙이에요. 스스로 배우지 않아요.'},
+ {n:'엘리베이터',d:'누른 층으로 차례대로 이동해요.',ai:0,w:'버튼 순서대로 움직이는 정해진 규칙을 따라요.'},
+ {n:'전자레인지',d:'시간을 맞추면 그동안 음식을 데워요.',ai:0,w:'입력한 시간만큼 작동하는 규칙대로 움직여요.'}];
+let s1;
+R.s1=()=>{s1={list:shuffle(SYS).slice(0,10),i:0,ok:0};
+ app().innerHTML=stageWrap('스테이지 1 · AI일까, 아닐까?','카드에 나온 기계가 인공지능인지 아닌지 골라 보세요.','',`${nameOf()}, 감별사 훈련 시작! 힌트를 잘 읽어 봐.`,'happy');s1card()};
+function s1card(){
+ const it=s1.list[s1.i];
+ $('#play').innerHTML=`<div class="tip"><b>구분 기준</b> 데이터로 <b>배워서</b> 스스로 판단하거나 예측하면 인공지능이에요. 사람이 정해 둔 <b>규칙대로만</b> 움직이면 인공지능이 아니에요.</div>
+ <div class="row" style="justify-content:space-between"><b>${s1.i+1} / ${s1.list.length}</b><span>맞힌 개수 ${s1.ok}</span></div><div class="meter"><i style="width:${s1.i/s1.list.length*100}%"></i></div>
+ <div class="card"><h3>${it.n}</h3><p>${it.d}</p></div><div id="fb"></div>
+ <div class="choices" id="ch1"><button class="btn blue" data-act="s1" data-v="1">인공지능이에요</button><button class="btn ghost" data-act="s1" data-v="0">인공지능이 아니에요</button></div>`;
+ talk('이건 데이터로 배우는 걸까, 규칙대로만 움직이는 걸까?','think');
+}
+function s1answer(v){
+ const it=s1.list[s1.i],good=+v===it.ai;if(good)s1.ok++;
+ $('#fb').innerHTML=`<div class="fb ${good?'ok':'no'}">${good?'정답!':'아쉬워요!'} ${it.n}은 ${it.ai?'인공지능이에요.':'인공지능이 아니에요.'}<small>${it.w}</small></div>`;
+ $('#ch1').innerHTML=`<button class="btn" data-act="s1next">${s1.i<s1.list.length-1?'다음 카드':'결과 보기'}</button>`;
+ talk(good?'맞았어! 감별사 실력이 쑥쑥 늘고 있어.':'괜찮아, 설명을 읽고 기준을 다시 떠올려 보자.',good?'wow':'sad');
+}
+function s1next(){s1.i++;if(s1.i<s1.list.length)return s1card();const n=s1.ok,st=n>=9?3:n>=7?2:1;finish(0,st,`10개 중 ${n}개를 맞혔어요!`,'s2')}
+
+/* ---------- 2. 지도학습 ---------- */
+const TRAIN=[{h:.05,e:.1,t:'a'},{h:.9,e:.88,t:'b'},{h:.2,e:.2,t:'a'},{h:.8,e:.8,t:'b'},{h:.38,e:.14,t:'a'},{h:1,e:.95,t:'b'},{h:0,e:.05,t:'a'},{h:.72,e:.86,t:'b'}];
+const TEST=[{h:.12,e:.12,t:'a'},{h:.95,e:.9,t:'b'},{h:.62,e:.16,t:'a'},{h:.3,e:.84,t:'b'}];
+const FN={a:'사과',b:'바나나'};
+function fruitSVG(it){
+ const r=Math.round(226+(255-226)*it.h),g=Math.round(48+(206-48)*it.h),b=Math.round(58+(60-58)*it.h),col=`rgb(${r},${g},${b})`,dk=`rgb(${r-60},${Math.max(0,g-60)},${b-20})`;
+ if(it.e<.5)return `<svg viewBox="0 0 80 80"><ellipse cx="40" cy="74" rx="22" ry="3" fill="#000" opacity=".14"/><path d="M40 24 C20 13 7 30 11 48 C15 67 30 73 40 67 C50 73 65 67 69 48 C73 30 60 13 40 24Z" fill="${col}"/><path d="M40 24 L42 11" stroke="#6b4a2b" stroke-width="3" stroke-linecap="round"/><path d="M43 16 Q54 7 59 15 Q51 21 43 16Z" fill="#3ccf91"/><ellipse cx="27" cy="36" rx="5" ry="8" fill="#fff" opacity=".35"/></svg>`;
+ return `<svg viewBox="0 0 80 80"><ellipse cx="42" cy="72" rx="26" ry="3" fill="#000" opacity=".14"/><path d="M12 22 Q14 58 46 64 Q64 67 72 56 Q52 58 36 46 Q22 34 20 20Z" fill="${col}" stroke="${dk}" stroke-width="2" stroke-linejoin="round"/><path d="M12 22 L14 14 L20 20Z" fill="#6b4a2b"/><path d="M24 30 Q30 46 46 54" stroke="#fff" stroke-width="3" opacity=".35" fill="none" stroke-linecap="round"/></svg>`;
+}
+let s2;
+R.s2=()=>{s2={lab:TRAIN.map(()=>null)};
+ app().innerHTML=stageWrap('스테이지 2 · 지도학습 연구실','AI 선생님이 되어 과일 사진마다 정답 이름표를 붙여 주세요. 그다음 AI가 처음 보는 과일을 맞히는지 시험해요.','',`${nameOf()}, 지도학습은 <b>정답이 붙은 데이터</b>로 배우는 방법이야. 이름표를 붙여 줘!`,'happy');s2draw()};
+function s2draw(){
+ const n=s2.lab.filter(Boolean).length;
+ $('#play').innerHTML=`<div class="tip"><b>학습 데이터</b> 과일 8개에 이름표를 붙여요. 일부러 틀리게 가르쳐 보고 AI가 어떻게 되는지 실험해도 좋아요.</div>
+ <div class="fruits">${TRAIN.map((it,i)=>`<div class="fruit">${fruitSVG(it)}<div class="row">${['a','b'].map(k=>`<button class="chip ${s2.lab[i]===k?'on':''}" data-act="lab" data-v="${i}:${k}">${FN[k]}</button>`).join('')}</div></div>`).join('')}</div>
+ <div class="row"><button class="btn" data-act="train" ${n<8?'disabled':''}>AI 학습시키기</button><span class="sub">${n} / 8 이름표 완료</span></div><div id="out"></div>`;
+}
+function s2train(){
+ $('#out').innerHTML=`<p style="margin-top:16px"><b>데이터에서 규칙을 찾는 중…</b></p><div class="meter"><i id="tb" style="width:0"></i></div>`;
+ talk('AI가 색깔과 모양을 비교하면서 규칙을 찾고 있어!','think');
+ later(()=>{const t=$('#tb');if(t)t.style.width='100%'},50);
+ later(s2test,1300);
+}
+function s2test(){
+ const pred=TEST.map(q=>{let bi=0,bd=9;TRAIN.forEach((t,i)=>{const d=Math.hypot(q.h-t.h,(q.e-t.e)*1.5);if(d<bd){bd=d;bi=i}});return s2.lab[bi]});
+ const ok=pred.filter((p,i)=>p===TEST[i].t).length,wrong=s2.lab.filter((l,i)=>l!==TRAIN[i].t).length;
+ $('#out').innerHTML=`<h3 style="margin-top:18px">시험: AI가 처음 보는 과일</h3><div class="fruits">${TEST.map((q,i)=>`<div class="fruit ${pred[i]===q.t?'good':'bad'}">${fruitSVG(q)}<div class="say">AI: ${FN[pred[i]]}!</div><small>${pred[i]===q.t?'맞았어요':'틀렸어요 · 정답 '+FN[q.t]}</small></div>`).join('')}</div>
+ <div class="fb ${ok===4?'ok':'no'}">AI가 4개 중 ${ok}개를 맞혔어요.<small>${wrong?`가르칠 때 이름표 ${wrong}개가 틀렸어요. AI는 알려 준 정답을 그대로 믿고 배우기 때문에 실수까지 따라 배워요. 데이터가 정확해야 AI도 똑똑해져요!`:'정답 이름표를 정확히 붙여 줘서 AI가 사과는 둥글고 바나나는 길쭉하다는 규칙을 찾아냈어요.'}</small></div>
+ <div class="row"><button class="btn ghost" data-act="relab">이름표 다시 붙이기</button><button class="btn" data-act="s2done" data-v="${ok}">스테이지 끝내기</button></div>`;
+ talk(wrong?'앗, 잘못 배운 게 있나 봐. 선생님이 틀리면 학생도 틀리지!':'와, 처음 보는 과일도 맞혔어! 이게 지도학습이야.',wrong?'sad':'wow');
+}
+
+/* ---------- 3. 비지도학습 ---------- */
+let seed=11;const rnd=()=>(seed=seed*16807%2147483647)/2147483647;
+const PTS=[];[[110,190],[305,195],[215,72]].forEach(([cx,cy])=>{for(let i=0;i<7;i++){const a=rnd()*6.283,r=8+rnd()*34;PTS.push({x:cx+Math.cos(a)*r,y:cy+Math.sin(a)*r*.85})}});
+const KC=['#ef4b52','#2b59ff','#ffb13d','#9b7bff'];
+let s3;
+R.s3=()=>{s3={k:3,cent:[],asg:PTS.map(()=>-1),running:false,done:false,usedK3:false,tries:0};
+ app().innerHTML=stageWrap('스테이지 3 · 비지도학습 연구실','간식 21개의 크기와 단맛 데이터만 있고 이름표는 하나도 없어요. AI가 비슷한 것끼리 스스로 묶는 모습을 지켜봐요.','',`${nameOf()}, 이번엔 정답을 안 알려 줄 거야. AI가 혼자서 무리를 찾을 수 있을까?`,'think');s3draw()};
+function s3board(){
+ let g=`<line x1="34" y1="258" x2="410" y2="258" stroke="currentColor" opacity=".35" stroke-width="2"/><line x1="34" y1="258" x2="34" y2="14" stroke="currentColor" opacity=".35" stroke-width="2"/><text x="408" y="276" text-anchor="end" font-size="13" fill="currentColor" opacity=".7">크기 →</text><text x="40" y="20" font-size="13" fill="currentColor" opacity=".7">↑ 단맛</text>`;
+ PTS.forEach((p,i)=>{const c=s3.asg[i]<0?'#9aa2c8':KC[s3.asg[i]];g+=`<circle cx="${p.x}" cy="${p.y}" r="9" fill="${c}"/><circle cx="${p.x-3}" cy="${p.y-3}" r="2.6" fill="#fff" opacity=".7"/>`});
+ s3.cent.forEach((c,i)=>{g+=`<g transform="translate(${c.x},${c.y})"><circle r="15" fill="none" stroke="${KC[i]}" stroke-width="3" stroke-dasharray="4 3"/><path d="M-7 0 H7 M0 -7 V7" stroke="${KC[i]}" stroke-width="3.5" stroke-linecap="round"/></g>`});
+ return `<svg viewBox="0 0 420 284" style="color:var(--ink)">${g}</svg>`;
+}
+function s3draw(){
+ $('#play').innerHTML=`<div class="tip"><b>예상해 보기</b> 이 간식들은 몇 개의 무리로 나뉠 것 같나요? 숫자를 고르면 AI가 그만큼의 무리로 묶어 봐요.</div>
+ <div class="row" style="margin-bottom:12px">${[2,3,4].map(k=>`<button class="chip ${s3.k===k?'on':''}" data-act="k" data-v="${k}" ${s3.running?'disabled':''}>${k}무리</button>`).join('')}<button class="btn blue" data-act="cluster" ${s3.running?'disabled':''}>AI가 묶어 보기</button></div>
+ <div class="board" id="bd">${s3board()}</div><p class="legend">점선 동그라미는 AI가 정한 무리의 중심이에요. 중심과 가까운 간식끼리 같은 색이 돼요.</p><div id="q3"></div>`;
+ if(s3.done)s3quiz();
+}
+function s3run(){
+ s3.running=true;s3.done=false;s3.tries++;if(s3.k===3)s3.usedK3=true;
+ s3.cent=shuffle(PTS).slice(0,s3.k).map(p=>({x:p.x,y:p.y}));s3.asg=PTS.map(()=>-1);s3draw();
+ talk('AI가 아무 데나 중심을 찍고, 가까운 것끼리 묶어 보는 중이야…','think');
+ let it=0;
+ const step=()=>{
+  let changed=false;
+  PTS.forEach((p,i)=>{let bi=0,bd=1e9;s3.cent.forEach((c,j)=>{const d=(p.x-c.x)**2+(p.y-c.y)**2;if(d<bd){bd=d;bi=j}});if(s3.asg[i]!==bi){changed=true;s3.asg[i]=bi}});
+  $('#bd').innerHTML=s3board();
+  later(()=>{
+   s3.cent=s3.cent.map((c,j)=>{const m=PTS.filter((p,i)=>s3.asg[i]===j);return m.length?{x:m.reduce((a,p)=>a+p.x,0)/m.length,y:m.reduce((a,p)=>a+p.y,0)/m.length}:c});
+   $('#bd').innerHTML=s3board();it++;
+   if(changed&&it<10)later(step,650);else{s3.running=false;s3.done=true;s3draw();
+    talk(s3.k===3?'딱 맞게 세 무리가 생겼어! 그런데 AI는 각 무리 이름은 몰라.':`AI가 ${s3.k}무리로 나눴어. 3무리로도 해 볼래?`,s3.k===3?'wow':'happy')}
+  },650);
+ };
+ later(step,700);
+}
+function s3quiz(){
+ $('#q3').innerHTML=`<div class="card" style="text-align:left"><h3 style="font-size:22px">질문: 이 AI는 처음에 간식의 정답 이름표를 받았나요?</h3><div class="choices" style="margin-top:12px"><button class="btn ghost" data-act="s3q" data-v="0">네, 사람이 무리 이름을 알려 줬어요</button><button class="btn ghost" data-act="s3q" data-v="1">아니요, 비슷한 것끼리 스스로 묶었어요</button></div><div id="fb3"></div></div>`;
+}
+function s3answer(v){
+ if(v==='1'){const st=(s3.qwrong?1:2)+(s3.usedK3?1:0);
+  $('#fb3').innerHTML=`<div class="fb ok">정답! 이름표 없이 비슷한 특징끼리 묶는 것이 <b>비지도학습</b>이에요.<small>쇼핑몰이 비슷한 손님끼리 묶거나, 뉴스를 주제별로 모을 때 쓰여요.</small></div><button class="btn" data-act="s3done" data-v="${st}">스테이지 끝내기</button>`;
+  talk('맞아! 정답 없이 스스로 패턴을 찾는 거야.','wow');
+ }else{s3.qwrong=true;$('#fb3').innerHTML=`<div class="fb no">다시 생각해 봐요! 처음에 간식들은 모두 회색이었고, 이름표가 없었어요.</div>`;talk('음… 처음에 간식에 이름이 붙어 있었나?','sad')}
+}
+
+/* ---------- 4. 강화학습 ---------- */
+const TR=new Set([6,8,11,17,18]),GOAL=24,MV=[[-1,0],[0,1],[1,0],[0,-1]],AR=['↑','→','↓','←'];
+const TRAP=`<svg viewBox="0 0 40 40"><path d="M20 3 L25 13 L36 11 L30 20 L37 29 L26 27 L20 37 L14 27 L3 29 L10 20 L4 11 L15 13Z" fill="#ef4b52"/><circle cx="20" cy="20" r="5" fill="#fff" opacity=".6"/></svg>`;
+const CHEST=`<svg viewBox="0 0 40 40"><rect x="6" y="17" width="28" height="17" rx="3" fill="#c9822b"/><path d="M6 19 Q6 8 20 8 Q34 8 34 19Z" fill="#e39a3b"/><rect x="6" y="17" width="28" height="4" fill="#ffd23f"/><rect x="17" y="18" width="6" height="8" rx="1.5" fill="#ffd23f"/></svg>`;
+let s4;
+R.s4=()=>{s4={Q:[...Array(25)].map(()=>[0,0,0,0]),ep:0,hist:[],pos:0,busy:false,arrows:true,solved:false,qwrong:false};
+ app().innerHTML=stageWrap('스테이지 4 · 강화학습 미로','AI 캐릭터가 보물까지 가는 길을 스스로 찾아요. 아무도 길을 알려 주지 않고, 보물에 닿으면 점수, 함정에 빠지면 감점을 받아요.','',`나를 닮은 AI가 미로에 들어갔어! 처음엔 아무것도 몰라서 막 움직일 거야.`,'think');s4draw()};
+const bestA=s=>{const q=s4.Q[s],m=Math.max(...q),c=[0,1,2,3].filter(i=>q[i]===m);return c[Math.floor(Math.random()*c.length)]};
+function envStep(s,a){let r=Math.floor(s/5)+MV[a][0],c=s%5+MV[a][1];if(r<0||r>4||c<0||c>4)return[s,-2,null];const n=r*5+c;if(n===GOAL)return[n,10,'goal'];if(TR.has(n))return[n,-10,'trap'];return[n,-1,null]}
+function episode(learn,eps){let s=0,path=[0],res='time';for(let t=0;t<(learn?40:16);t++){const a=Math.random()<eps?Math.floor(Math.random()*4):bestA(s);const[n,r,end]=envStep(s,a);if(learn){const tg=r+(end?0:.9*Math.max(...s4.Q[n]));s4.Q[s][a]+=.5*(tg-s4.Q[s][a])}s=n;path.push(s);if(end){res=end;break}}if(learn){s4.ep++;s4.hist.push(res);if(s4.hist.length>40)s4.hist.shift()}return{path,res}}
+const eps=()=>Math.max(.05,.6*Math.pow(.93,s4.ep));
+function grid(){let h='';for(let i=0;i<25;i++){const q=s4.Q[i],m=Math.max(...q),known=q.some(v=>v!==0);let inner='';
+ if(i===s4.pos)inner=charSVG(ch,'happy');else if(TR.has(i))inner=TRAP;else if(i===GOAL)inner=CHEST;else if(s4.arrows&&known)inner=AR[q.indexOf(m)];
+ h+=`<div class="cell ${i===0?'start':''} ${TR.has(i)?'trap':''} ${i===GOAL?'goal':''}">${inner}</div>`}return h}
+function s4draw(){
+ const g=s4.hist.filter(r=>r==='goal').length;
+ $('#play').innerHTML=`<div class="tip"><b>규칙</b> 보물 +10점 · 함정 −10점 · 한 칸 움직일 때마다 −1점. AI는 점수를 가장 많이 받는 방법을 스스로 익혀요.</div>
+ <div class="gw" id="gw">${grid()}</div>
+ <div class="stats"><span>연습 횟수 ${s4.ep}번</span><span>최근 성공 ${g} / ${s4.hist.length}</span><span>엉뚱하게 움직일 확률 ${Math.round(eps()*100)}%</span></div>
+ <div class="hist">${s4.hist.map(r=>`<i class="${r}"></i>`).join('')}</div><p class="legend">초록 점은 보물 도착, 빨간 점은 함정, 회색 점은 시간 초과예요. 칸 안의 화살표는 AI가 지금까지 배운 가장 좋은 방향이에요.</p>
+ <div class="row" style="justify-content:center"><button class="btn ghost" data-act="ep1" ${s4.busy?'disabled':''}>1번 연습 지켜보기</button><button class="btn blue" data-act="ep20" ${s4.busy?'disabled':''}>20번 빠르게 연습</button><button class="btn" data-act="test4" ${s4.busy?'disabled':''}>실력 확인하기</button></div>
+ <div class="row" style="justify-content:center;margin-top:10px"><button class="chip ${s4.arrows?'on':''}" data-act="arw">화살표 ${s4.arrows?'보이기':'숨기기'}</button><button class="chip" data-act="reset4" ${s4.busy?'disabled':''}>AI 기억 지우기</button></div><div id="q4"></div>`;
+ if(s4.solved)s4quiz();
+}
+function animate(path,res,after){
+ s4.busy=true;s4draw();let i=0;
+ const tick=()=>{s4.pos=path[i];const gw=$('#gw');if(!gw)return;gw.innerHTML=grid();i++;if(i<path.length)later(tick,170);else later(()=>{s4.pos=0;s4.busy=false;after(res,path.length-1)},500)};tick();
+}
+function s4ep1(){const{path,res}=episode(true,eps());talk('한 걸음씩 움직이며 점수를 확인하고 있어…','think');animate(path,res,(r)=>{s4draw();talk(r==='goal'?'보물을 찾았다! 이 길을 기억해 둘게.':r==='trap'?'으악, 함정이야! 감점이니까 다음엔 피해야지.':'시간이 다 됐어. 더 연습해야겠다.',r==='goal'?'wow':'sad')})}
+function s4ep20(){for(let i=0;i<20;i++)episode(true,eps());s4draw();const g=s4.hist.slice(-20).filter(r=>r==='goal').length;talk(`20번 연습 중 ${g}번 보물에 도착했어! 연습할수록 엉뚱한 행동이 줄어들어.`,g>12?'wow':'think')}
+function s4test(){const{path,res}=episode(false,0);talk('이제 배운 대로만 움직여 볼게!','think');
+ animate(path,res,(r,n)=>{if(r==='goal'){s4.solved=true;s4draw();talk(`${n}걸음 만에 보물 도착! 아무도 길을 안 알려 줬는데 해냈어.`,'wow')}else{s4draw();talk(r==='trap'?'아직 함정을 잘 몰라. 연습을 더 시켜 줘!':'아직 길을 헤매고 있어. 20번 연습을 몇 번 더 해 볼까?','sad')}})}
+function s4quiz(){
+ $('#q4').innerHTML=`<div class="card" style="text-align:left;margin-top:18px"><h3 style="font-size:22px">질문: 이 AI는 무엇을 보고 길 찾기를 배웠나요?</h3><div class="choices" style="margin-top:12px"><button class="btn ghost" data-act="s4q" data-v="0">사람이 붙여 준 정답</button><button class="btn ghost" data-act="s4q" data-v="1">행동마다 받은 점수와 감점</button><button class="btn ghost" data-act="s4q" data-v="2">비슷한 칸끼리 묶기</button></div><div id="fb4"></div></div>`;
+}
+function s4answer(v){
+ if(v==='1'){$('#fb4').innerHTML=`<div class="fb ok">정답! 시행착오를 겪으며 <b>보상</b>을 많이 받는 행동을 익히는 것이 <b>강화학습</b>이에요.<small>게임 AI, 로봇 걷기, 바둑 AI 등에 쓰여요.</small></div><button class="btn" data-act="s4done" data-v="${s4.qwrong?2:3}">스테이지 끝내기</button>`;talk('맞아! 점수가 나의 선생님이었어.','wow')}
+ else{s4.qwrong=true;$('#fb4').innerHTML=`<div class="fb no">다시 생각해 봐요! 미로에서 AI에게 정답을 알려 준 사람이 있었나요?</div>`;talk('흠, 내가 움직일 때마다 뭘 받았더라?','sad')}
+}
+
+/* ---------- 5. 최종 시험 ---------- */
+const FQ=[
+ {q:'고양이 사진과 강아지 사진에 하나하나 이름표를 붙여서 AI에게 보여 주었어요.',a:0,w:'정답 이름표가 붙은 데이터로 배우니까 지도학습이에요.'},
+ {q:'쇼핑몰 AI가 손님들을 사는 물건이 비슷한 사람끼리 몇 무리로 나누었어요. 무리 이름은 아무도 알려 주지 않았어요.',a:1,w:'이름표 없이 비슷한 것끼리 묶었으니 비지도학습이에요.'},
+ {q:'바둑 AI가 혼자 수없이 대국하면서 이기면 점수, 지면 감점을 받아 실력을 키웠어요.',a:2,w:'보상과 벌점으로 배우니까 강화학습이에요.'},
+ {q:'스팸 메일과 정상 메일이 표시된 메일 1만 통으로 메일 분류 AI를 가르쳤어요.',a:0,w:'스팸인지 아닌지 정답이 표시된 데이터라서 지도학습이에요.'},
+ {q:'로봇 청소기 AI가 벽에 부딪히면 감점, 먼지를 많이 치우면 점수를 받으며 움직이는 법을 익혔어요.',a:2,w:'행동의 결과로 받은 점수로 배우니까 강화학습이에요.'},
+ {q:'천문대 AI가 이름 없는 별 사진 수천 장을 밝기와 색이 비슷한 것끼리 스스로 묶었어요.',a:1,w:'정답 없이 특징이 비슷한 것끼리 묶었으니 비지도학습이에요.'}];
+const LM=['지도학습','비지도학습','강화학습'];
+let s5;
+R.s5=()=>{s5={list:shuffle(FQ),i:0,ok:0};app().innerHTML=stageWrap('최종 시험 · 학습 방법 구분하기','각 이야기 속 AI가 어떤 방법으로 배웠는지 골라요.','','마지막 관문이야! 정답, 무리 짓기, 점수를 떠올려 봐.','think');s5card()};
+function s5card(){const it=s5.list[s5.i];
+ $('#play').innerHTML=`<div class="tip"><b>지도학습</b> 정답 이름표로 배워요 · <b>비지도학습</b> 비슷한 것끼리 스스로 묶어요 · <b>강화학습</b> 보상과 벌점으로 배워요</div>
+ <div class="row" style="justify-content:space-between"><b>${s5.i+1} / ${s5.list.length}</b><span>맞힌 개수 ${s5.ok}</span></div><div class="meter"><i style="width:${s5.i/s5.list.length*100}%"></i></div>
+ <div class="card"><p>${it.q}</p></div><div id="fb"></div><div class="choices" id="ch5">${LM.map((l,i)=>`<button class="btn blue" data-act="s5" data-v="${i}">${l}</button>`).join('')}</div>`;
+}
+function s5answer(v){const it=s5.list[s5.i],good=+v===it.a;if(good)s5.ok++;
+ $('#fb').innerHTML=`<div class="fb ${good?'ok':'no'}">${good?'정답!':'아쉬워요! 정답은 '+LM[it.a]+'이에요.'}<small>${it.w}</small></div>`;
+ $('#ch5').innerHTML=`<button class="btn" data-act="s5next">${s5.i<s5.list.length-1?'다음 문제':'수료증 받기'}</button>`;
+ talk(good?'역시! 완전히 이해했구나.':'괜찮아, 설명을 보면 바로 알 수 있어.',good?'wow':'sad')}
+function s5next(){s5.i++;if(s5.i<s5.list.length)return s5card();prog.quiz=Math.max(prog.quiz,s5.ok);save();go('cert')}
+R.cert=()=>{
+ const tot=prog.stars.reduce((a,b)=>a+b,0),d=new Date();
+ app().innerHTML=`<div class="panel cert">${charSVG(ch,'wow')}<h2>AI 탐험대 수료증</h2><div class="nm">${nameOf()}</div>
+ <p style="max-width:520px;margin:12px auto">위 탐험가는 인공지능과 인공지능이 아닌 시스템을 구분하고, 지도학습·비지도학습·강화학습을 직접 체험하였기에 이 수료증을 드립니다.</p>
+ <p><b>모은 별 ${tot} / 12</b> · <b>최종 시험 ${prog.quiz} / ${FQ.length}</b></p><p class="sub">${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일</p>
+ <div class="row" style="justify-content:center;margin-top:16px"><button class="btn ghost" data-go="map">지도로</button><button class="btn blue" data-go="make">캐릭터 꾸미기</button><span id="rs"><button class="btn ghost" data-act="reset">처음부터 다시</button></span></div></div>`;
+};
+
+/* ---------- 이벤트 ---------- */
+const ACT={
+ set(v){const i=v.indexOf(':');ch[v.slice(0,i)]=v.slice(i+1);save();go('make')},
+ rand(){ch.type=TYPES[Math.floor(Math.random()*4)][0];ch.color=COLORS[Math.floor(Math.random()*6)];ch.eyes=EYES[Math.floor(Math.random()*4)][0];ch.acc=ACC[Math.floor(Math.random()*5)][0];save();go('make')},
+ done(){prog.made=true;save();go('map')},
+ retry(v){go('s'+(+v+1))},
+ s1:s1answer,s1next,
+ lab(v){const[i,k]=v.split(':');s2.lab[+i]=k;s2draw();talk(`${FN[k]}라고 가르쳤어. AI가 잘 기억할게!`,'happy')},
+ train:s2train,relab(){s2draw();talk('이름표를 고쳐서 다시 가르쳐 보자!','happy')},
+ s2done(v){const n=+v;finish(1,n===4?3:n===3?2:1,`AI가 처음 보는 과일 4개 중 ${n}개를 맞혔어요!`,'s3')},
+ k(v){s3.k=+v;s3draw()},cluster:s3run,s3q:s3answer,
+ s3done(v){finish(2,+v,'AI가 정답 없이 스스로 무리를 찾았어요!','s4')},
+ ep1:s4ep1,ep20:s4ep20,test4:s4test,
+ arw(){s4.arrows=!s4.arrows;s4draw()},
+ reset4(){s4.Q=[...Array(25)].map(()=>[0,0,0,0]);s4.ep=0;s4.hist=[];s4.solved=false;s4draw();talk('기억이 사라졌어! 다시 처음부터 배워야 해.','sad')},
+ s4q:s4answer,s4done(v){finish(3,+v,`${s4.ep}번 연습해서 보물 찾는 법을 익혔어요!`,'s5')},
+ s5:s5answer,s5next,
+ reset(){$('#rs').innerHTML=`<span>별과 기록이 모두 지워져요.</span> <button class="btn" data-act="reset2">지우기</button>`},
+ reset2(){prog={stars:[0,0,0,0],quiz:-1,made:true};save();go('map')}
+};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act],[data-go]');if(!b||b.disabled)return;if(b.dataset.go){go(b.dataset.go);return}const f=ACT[b.dataset.act];if(f)f(b.dataset.v,b)});
+go(prog.made?'map':'start');
+}
+</script>
+</body>
+</html>
